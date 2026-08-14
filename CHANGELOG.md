@@ -5,8 +5,21 @@ All notable changes to FMT-exocortex-template will be documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/).
 
+Классификация записей (WP-7 Ф62 п.4): пункт получает метку `security`/
+`migration`/`behavior`/`optional` через git trailer в теле коммита —
+`Changelog-Tag: <tag>`. **Trailer обязан быть в последнем непрерывном
+блоке строк вида `key: value` в самом конце сообщения** (git-конвенция
+trailer-парсинга) — если после него идёт ещё один абзац (например,
+`Refs:`), git его не распознает и коммит останется без метки:
+```
+fix(area): краткое описание
 
+Тело коммита с объяснением.
 
+Changelog-Tag: security
+Refs: WP-NNN
+```
+Отсутствие метки не означает «безопасно» — просто «не классифицировано».
 
 
 
@@ -116,6 +129,70 @@ Versioning: [Semantic Versioning](https://semver.org/).
 
 
 
+
+
+
+
+
+
+
+## [Unreleased] — обновлено 2026-08-14
+
+### Added
+
+- `82394ba` feat(release): классификация CHANGELOG (security/migration/behavior/optional)
+- `c578eb8` feat: promote day-open-pipeline.sh to platform
+- `0c1cfba` feat(wp518): link work packages to hypotheses
+- `52887e6` feat(create-wp): Hypothesis Gate (WP-496 Ф8) — --hypothesis обязателен при наличии журнала гипотез
+- `86daabe` feat(strategy-cycle): WP-agnostic decision-package contract + hypothesis-log regulation
+
+### Changed
+
+- [behavior] `c370fde` docs(changelog): задокументировать конвенцию Changelog-Tag trailer
+- `9bf3db4` Merge pull request #421 from TserenTserenov/codex/fix-manifest-after-420-delivery
+- `88e447c` Merge pull request #420 from TserenTserenov/codex/fix-issues-413-418-main
+- `b8b903f` Merge remote-tracking branch 'origin/main'
+- `6402816` revert(create-wp): откат Hypothesis Gate (52887e6) — заменён механизмом РП518
+- `1ca4fe0` Merge remote-tracking branch 'origin/main'
+- `b69feb8` docs: sync README version badge to 0.38.3
+- `e233503` Ревизия внешнего позиционирования: ученик -> участник вне ступеней/ролей
+- `43aba30` ci(release): gate tag/release creation on Validate Template passing
+- `042e254` ci(audit): re-enable post-release audit trigger, throttled to minor/major bumps
+- `144ff18` ci(update): wire test-update-issue-226.sh into CI
+
+### Fixed
+
+- `b4f24c6` fix(dayopen): коммитить только файлы этого прогона, не весь archive/day-plans (WP-484)
+- `a6e4c36` fix(#405): treat cancelled WPs as terminal (#422)
+- `6c3d493` fix: regenerate manifest after #420
+- `89f1b84` fix: resolve regressions #413-#418
+- `a4cbca7` fix(#406): Update IWE светофор day-open-scaffold.sh был вечнозелёным
+- `0e58249` fix(#411,#412,#404,#408,#409,#410,#397,#402): issue funnel — hook/detector/skill/update.sh fixes
+- `7bfa0e6` fix(onboarding): correct МИМ name in template docs — Мастерская, not Школа
+
+
+## [0.38.3] — 2026-08-11
+
+### Added
+
+- Контракт цикла стратегирования (`extensions/strategy-cycle/`): форма события закрытия периода и пакета решений (≤10 позиций, обязательная деградация на пустой producer) без привязки к конкретным номерам рабочих продуктов — статус `draft`, ждёт живой приёмки на инсталляции без выделенного сервера.
+- `memory/lpf-hypothesis-log.md`: регламент журнала гипотез (4 обязательных поля, запрет правки задним числом, норма 8-15 живых записей, входной фильтр по ставке, событийная дисциплина вердикт/исправление/отзыв/замена). Закрывает год висевшую сломанную ссылку из `verify-hypotheses/SKILL.md`.
+
+### Changed
+
+- Шаги недельной стратегической сессии (`03-dissatisfactions.md`, `06a-pool.md`, `06b-budget.md`): правило принудительного выбора по неудовлетворённостям без движения 8+ недель, колонка «ставка» на гипотезу в пуле кандидатов, обязательный срок/триггер пересмотра для решений «не берём».
+- `week-close/SKILL.md`: инструкция не оставлять таблицу «Сверка РП↔НЭП» пустой заглушкой — явный алгоритм заполнения по списку закрытых РП недели.
+
+## [0.38.2] — 2026-08-09
+
+### Changed
+
+- `guide-kit` обновлён до `v0.1.3`: прикладная дорожка (вход `domain_traits` в планировщик, продакшн-адаптер `profile.yaml` → `HorizonContext`, проброс текста прикладной мини-секции, разложение прикладных источников, персонализация по здоровью) — работа РП-483/495, до этого релиза жившая только в исходном репозитории.
+
+### Fixed
+
+- `guide-kit` планировщик больше не отдаёт занятие без элемента каталога **в установках без учебного каталога**. Дефолтное узкое место RCS-профиля ведёт в область «Ограничения», где нет ни одной практики CAT.002/003; если при этом не задан `GUIDE_KIT_CURRICULUM_PATH` (переносимый профиль без платформы — штатный случай, описанный в самом модуле), мировоззренческий каталог пуст, и занятие собиралось без опоры на каталог вообще. Добавлен кросс-областной запасной путь: берётся обслуживаемая область с наибольшим остаточным разрывом, поэтому реальный прогресс продолжает направлять выбор. **В установке с подключённым каталогом дефект не проявлялся** — там область «Ограничения» обслуживается мировоззренческими элементами.
+- `guide-kit` разложение прикладных источников больше не выбрасывает журнал решений (он не попадал в результат, хотя обещан контрактом модуля) и не падает на объявленном, но пустом списке секций — отсутствующий ключ и пустой список разведены.
 
 ## [0.38.1] — 2026-08-08
 
