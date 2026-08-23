@@ -145,7 +145,7 @@
     },
     {
       "path": ".claude/hooks/wp-gate-reminder.sh",
-      "sha256": "a6dfaee3ebc87432236f63b33a047c52fa1a117b4d44803689cf96ba2559a84d"
+      "sha256": "de43b90ff08bb3b087988cc2bd11438c9091c8e455dbd88daa0105de26c4da34"
     },
     {
       "path": ".claude/lib/behaviour-report.sh",
