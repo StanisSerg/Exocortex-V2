@@ -8,10 +8,6 @@ on:
   schedule:
     - cron: '28 4 * * *'  # 7:28 MSK
   workflow_dispatch:       # ручной запуск для тестирования
-  push:
-    branches: [main]        # найдено code review 13.08: без этого фильтра фичебранчи/worktree тоже триггерят уведомление о неревьюженном контенте
-    paths:
-      - 'CHANGELOG.md'     # WP-7 Ф62 п.4: триггер для срочного security-уведомления (job notify-security)
 
 permissions:
   contents: read
@@ -19,10 +15,7 @@ permissions:
 jobs:
   notify:
     runs-on: ubuntu-latest
-    # найдено code review 13.08: без ограничения по event_name дневной дайджест
-    # запускался бы на каждый push (после добавления push-триггера для
-    # notify-security) — дубль сообщения подписчикам на каждом security-пуше.
-    if: github.repository == 'TserenTserenov/FMT-exocortex-template' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: github.repository == 'TserenTserenov/FMT-exocortex-template'
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,8 +48,22 @@ jobs:
           TODAY=$(date -u +%Y-%m-%d)
           YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d 2>/dev/null || date -u -v-1d +%Y-%m-%d)
 
-          # Первая (самая новая) версия — для заголовка
-          VERSION=$(grep -m1 '^## \[' CHANGELOG.md | sed 's/## //')
+          # Первая (самая новая) РЕАЛЬНО ВЫПУЩЕННАЯ версия — для заголовка
+          # (см. блок ниже: заголовок тоже не имеет права опережать тег).
+          VERSION=""
+
+          # 2026-08-22 (live: анонс v0.38.7 ушёл 32 подписчикам, пока тега и
+          # GitHub Release не существовало): дайджест обязан опираться на факт
+          # выпуска, не на заголовок CHANGELOG. Секции версий без существующего
+          # git-тега (v<ver> или <ver>) исключаются из рассылки целиком.
+          git tag > /tmp/existing_tags.txt
+          while IFS= read -r hdr; do
+            ver=$(printf '%s' "$hdr" | sed -E 's/^\[([^]]+)\].*/\1/')
+            if grep -qx "v$ver" /tmp/existing_tags.txt || grep -qx "$ver" /tmp/existing_tags.txt; then
+              VERSION="$hdr"
+              break
+            fi
+          done < <(grep '^## \[' CHANGELOG.md | sed 's/## //')
 
           # Все записи с датами today или yesterday
           # Собираем все блоки между ## [...] заголовками, фильтруя по дате
@@ -67,19 +74,28 @@ jobs:
           entries = []
           current_block = []
           current_date = None
+          tags = set(open('/tmp/existing_tags.txt').read().split())
+          def released(ver):
+              # Unreleased-секция и версии без тега не анонсируются;
+              # исторические теги встречаются и с 'v', и без.
+              if not ver or ver.lower() == 'unreleased':
+                  return False
+              return ('v' + ver) in tags or ver in tags
+          current_ver = None
           with open('CHANGELOG.md') as f:
               for line in f:
                   if line.startswith('## ['):
-                      if current_block and current_date in (today, yesterday):
+                      if current_block and current_date in (today, yesterday) and released(current_ver):
                           entries.extend(current_block)
                       current_block = []
                       # Extract date from '## [0.8.7] — 2026-03-17'
                       parts = line.split('—')
                       current_date = parts[-1].strip() if len(parts) > 1 else ''
+                      current_ver = line.split('[', 1)[-1].split(']', 1)[0].strip()
                   elif current_date is not None:
                       current_block.append(line)
               # Last block
-              if current_block and current_date in (today, yesterday):
+              if current_block and current_date in (today, yesterday) and released(current_ver):
                   entries.extend(current_block)
           result = ''.join(entries).strip()
           # Limit to ~50 lines
@@ -176,75 +192,5 @@ jobs:
             echo "✓ Bot webhook responded: $BODY"
           else
             echo "✗ Bot webhook failed (HTTP $HTTP_CODE): $BODY"
-            exit 1
-          fi
-
-  # WP-7 Ф62 п.4: срочное уведомление для [security]-пунктов CHANGELOG — поверх
-  # уже существующего дневного дайджеста (job notify выше), тот же webhook/бот,
-  # НЕ новый канал доставки (принцип SECURITY.md: rolling-release без LTS).
-  # DRR: decisions/2026-08/2026-08-10-wp-7-arhgeyt-changelog-klassifikaciya-bez-lts.md
-  notify-security:
-    runs-on: ubuntu-latest
-    if: github.repository == 'TserenTserenov/FMT-exocortex-template' && github.event_name == 'push'
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0  # нужна полная история для git diff по before..sha
-
-      - name: Extract newly added [security] lines
-        id: extract
-        run: |
-          # Общая логика извлечения/якорения — scripts/changelog-diff-lines.sh
-          # (выделена из дублей в этом файле и validate-template.yml, code
-          # review 13.08: голый grep был не заякорен на позицию бирки).
-          NEW_LINES=$(bash scripts/changelog-diff-lines.sh "${{ github.event.before }}" --security-only)
-
-          if [ -z "$NEW_LINES" ]; then
-            echo "has_security=false" >> "$GITHUB_OUTPUT"
-            echo "No new [security]-tagged CHANGELOG lines in this push"
-          else
-            echo "has_security=true" >> "$GITHUB_OUTPUT"
-            # найдено code review 13.08: статичный delimiter коллидирует, если
-            # текст CHANGELOG когда-нибудь совпадёт со строкой-разделителем —
-            # случайный delimiter на каждый прогон убирает этот класс бага.
-            DELIM="SECURITY_EOF_$(date +%s%N | sha256sum | cut -c1-16)"
-            {
-              echo "lines<<$DELIM"
-              echo "$NEW_LINES"
-              echo "$DELIM"
-            } >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Send urgent security notification
-        if: steps.extract.outputs.has_security == 'true'
-        env:
-          BOT_WEBHOOK_URL: ${{ secrets.BOT_WEBHOOK_URL }}
-          TEMPLATE_WEBHOOK_SECRET: ${{ secrets.TEMPLATE_WEBHOOK_SECRET }}
-          SECURITY_LINES: ${{ steps.extract.outputs.lines }}
-        run: |
-          # SECURITY_LINES передан через env:, не заинлайнен в run: — прямая
-          # интерполяция ${{ }} в тело скрипта была бы script injection
-          # (значение из CHANGELOG.md попадает в actions-context как текст
-          # ДО запуска shell, до всякого экранирования).
-          VERSION=$(grep -m1 '^## \[' CHANGELOG.md | sed 's/## //')
-          MESSAGE="🔒 СРОЧНО — обнаружены security-изменения:
-          $SECURITY_LINES"
-
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "${BOT_WEBHOOK_URL}/api/template-update" \
-            -H "Content-Type: application/json" \
-            -H "X-Webhook-Secret: ${TEMPLATE_WEBHOOK_SECRET}" \
-            -d "$(jq -n \
-              --arg version "$VERSION" \
-              --arg changelog "$MESSAGE" \
-              --arg commit_count "1" \
-              '{version: $version, changelog: $changelog, commit_count: ($commit_count | tonumber)}')")
-
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "✓ Urgent security notification sent: $BODY"
-          else
-            echo "✗ Urgent security notification failed (HTTP $HTTP_CODE): $BODY"
             exit 1
           fi

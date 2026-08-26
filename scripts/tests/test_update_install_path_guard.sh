@@ -15,27 +15,42 @@ declare -F validate_no_install_values_in_applied_additions >/dev/null
 
 SCRIPT_DIR="$TMP/template"
 WORKSPACE_DIR="$TMP/workspace"
-mkdir -p "$SCRIPT_DIR" "$WORKSPACE_DIR"
+TMPDIR_UPDATE="$TMP/update-payload"
+INTEGRITY_TAINTED=false
+MANIFEST="$TMP/target-manifest.json"
+PY_BIN=""
+py_available() { return 1; }
+UPSTREAM="$TMP/upstream.git"
+mkdir -p "$SCRIPT_DIR" "$WORKSPACE_DIR" "$TMPDIR_UPDATE/files"
+printf '%s\n' '{"files":[]}' > "$MANIFEST"
+git init -q --bare "$UPSTREAM"
 git -C "$SCRIPT_DIR" init -q
 git -C "$SCRIPT_DIR" config user.email test@example.invalid
 git -C "$SCRIPT_DIR" config user.name 'Install path guard test'
+git -C "$SCRIPT_DIR" remote add origin "$UPSTREAM"
 
 cat >"$WORKSPACE_DIR/.exocortex.env" <<EOF
 WORKSPACE_DIR=$WORKSPACE_DIR
 HOME_DIR=/root
+USER_NAME=root
 CLAUDE_PATH=/root/.claude
 IWE_TEMPLATE=$SCRIPT_DIR
 IWE_RUNTIME=$WORKSPACE_DIR/.iwe-runtime
 EOF
 
-# Existing tracked install-like values are outside the updater's responsibility.
-# An unrelated working-tree addition must not be blocked by historical container docs.
+# A target-release line that equals an install path is canonical and must not
+# be blocked. The verified downloaded payload, not local branch history, is
+# the provenance source (issue #524).
 cat >"$SCRIPT_DIR/existing.md" <<'EOF'
 The container user has HOME=/root and stores Claude config in /root/.claude.
 EOF
 git -C "$SCRIPT_DIR" add existing.md
 git -C "$SCRIPT_DIR" commit -qm baseline
+git -C "$SCRIPT_DIR" push -q origin HEAD:main
+git -C "$SCRIPT_DIR" branch -q --set-upstream-to=origin/main 2>/dev/null ||
+    git -C "$SCRIPT_DIR" branch -q -u origin/main
 printf 'Safe update line.\n' >>"$SCRIPT_DIR/existing.md"
+cp "$SCRIPT_DIR/existing.md" "$TMPDIR_UPDATE/files/existing.md"
 APPLIED_PATHS=(existing.md)
 validate_no_install_values_in_applied_additions
 
@@ -102,6 +117,7 @@ git -C "$SCRIPT_DIR" clean -qfd 2>/dev/null || true
 cat >"$WORKSPACE_DIR/.exocortex.env" <<EOF
 WORKSPACE_DIR=$WORKSPACE_DIR
 HOME_DIR=/root
+USER_NAME=root
 CLAUDE_PATH=claude
 IWE_TEMPLATE=$SCRIPT_DIR
 IWE_RUNTIME=$WORKSPACE_DIR/.iwe-runtime
@@ -110,4 +126,4 @@ printf 'See scripts/claude-peer-adapter.sh for the Claude peer contract.\n' >"$S
 APPLIED_PATHS=(bare-claude.md)
 validate_no_install_values_in_applied_additions
 
-echo 'PASS: install-path guard checks only updater-applied working-tree additions'
+echo 'PASS: install-path guard accepts only exact lines from verified update targets'
