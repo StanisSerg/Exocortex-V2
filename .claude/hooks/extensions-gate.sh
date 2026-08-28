@@ -55,7 +55,7 @@ WORKSPACE_DIR="$(cd "$(dirname "$0")/../.." && pwd -P)"
 case "$REAL_PATH" in
   "$WORKSPACE_DIR"|"$WORKSPACE_DIR"/*) ;;
   *)
-    echo '{}'
+    # Молчим: пустой stdout. Вывод '{}' всплывал в чате Kimi CLI (2026-08-28).
     exit 0
     ;;
 esac
@@ -126,6 +126,6 @@ case "$REL_PATH" in
   ;;
 esac
 
-# Разрешить редактирование обычных файлов
-echo '{}'
+# Разрешить редактирование обычных файлов — молча (пустой stdout;
+# '{}' всплывал в чате Kimi CLI на каждом Edit/Write, 2026-08-28).
 exit 0
