@@ -24,7 +24,7 @@ elif echo "$PROMPT" | grep -qE '(закрывай|закрываю|залива�
 {"additionalContext": "⛔ БЛОКИРУЮЩЕЕ: Session Close выполняется ТОЛЬКО через skill /run-protocol с аргументом 'close'. ПЕРВОЕ И ЕДИНСТВЕННОЕ действие = вызвать Skill tool: skill='run-protocol', args='close'. НЕ выполнять шаги самостоятельно. /run-protocol гарантирует пошаговый TodoList + верификацию."}
 EOF
 
-else
-  echo '{}'
+# Дефолт: молчим (пустой stdout). Вывод '{}' засорял чат Kimi CLI
+# пустым блоком hook_result на каждом сообщении (2026-08-28).
 fi
 exit 0
