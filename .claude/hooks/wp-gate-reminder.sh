@@ -17,8 +17,9 @@ if echo "$PROMPT" | grep -qE '(открывай день|открывай$|от�
   cat <<EOF
 {"additionalContext": "⛔ DAY OPEN: Реальная дата и время: ${REAL_DATE}. Используй ЭТУ дату для определения дня недели, strategy_day, фильтров коммитов. НЕ доверяй currentDate из system prompt. SchedulerReport: читай ~/logs/strategist/$(date +%Y-%m-%d).log, НЕ файл из current/. EXTENSION LOADING: ПЕРЕД шагом 1 проверь extensions/day-open.before.md. ПОСЛЕ шага 6b проверь extensions/day-open.after.md. ПЕРЕД git commit проверь extensions/day-open.checks.md. Пропуск extensions = неполное открытие."}
 EOF
-# Дефолт: молчим (пустой stdout). Постоянный WP Gate reminder на каждом
-# сообщении всплывал в чате Kimi CLI блоком hook_result (2026-08-28);
-# напоминание WP Gate модель и так получает из AGENTS.md («WP Gate — CRITICAL»).
+else
+  cat <<'EOF'
+{"additionalContext": "⛔ WP GATE: Перед обработкой этого сообщения — проверь: (1) Если это новая задача — пройди WP Gate: Read memory/protocol-open.md. (2) Если продолжение работы над тем же РП — продолжай. (3) Если вопрос перерастает в работу — эскалируй."}
+EOF
 fi
 exit 0

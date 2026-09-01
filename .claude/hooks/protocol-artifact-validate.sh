@@ -220,8 +220,10 @@ if [ ${#MISSING[@]} -gt 0 ] || [ ${#ERRORS[@]} -gt 0 ]; then
   MSG="$MSG Исправь DayPlan перед коммитом."
 
   jq -n --arg reason "$MSG" '{"decision": "block", "reason": $reason}'
+else
+  cat <<'EOF'
+{"additionalContext": "✅ DayPlan прошёл валидацию: секции, ## заголовки, непустые блоки, мультипликатор, carry-over."}
+EOF
 fi
-# Успех — молчим (пустой stdout). JSON «✅ валидация пройдена» всплывал
-# в чате Kimi CLI служебным блоком на каждом коммите DayPlan (2026-08-28).
 
 exit 0
