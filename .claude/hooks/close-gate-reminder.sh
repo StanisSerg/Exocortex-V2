@@ -24,7 +24,6 @@ elif echo "$PROMPT" | grep -qE '(закрывай|закрываю|залива�
 {"additionalContext": "⛔ БЛОКИРУЮЩЕЕ: Session Close выполняется ТОЛЬКО через skill /run-protocol с аргументом 'close'. ПЕРВОЕ И ЕДИНСТВЕННОЕ действие = вызвать Skill tool: skill='run-protocol', args='close'. НЕ выполнять шаги самостоятельно. /run-protocol гарантирует пошаговый TodoList + верификацию."}
 EOF
 
-else
-  echo '{}'
 fi
+# Нет close-триггера — молчим (пустой stdout; echo '{}' засоряло чат пилота, убрано 2026-09-05)
 exit 0
