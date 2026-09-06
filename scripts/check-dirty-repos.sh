@@ -31,16 +31,25 @@ check_repo() {
         DIRTY=$((DIRTY + 1))
     fi
 
-    # Unpushed commits
+    # Unpushed commits (только репо пилота; чужой upstream без push-прав — норма, не шумим)
     local ahead=$(git rev-list --count HEAD...@{upstream} --left-only 2>/dev/null || echo "0")
     if [ "$ahead" -gt 0 ]; then
-        echo "↗️  $name: $ahead незапушенных коммитов"
-        UNPUSHED=$((UNPUSHED + 1))
+        local url=$(git remote get-url origin 2>/dev/null || echo "")
+        local owner=$(echo "$url" | sed -E 's#.*github.com[:/]([^/]+)/.*#\1#')
+        if [ -n "$PILOT_OWNER" ] && [ -n "$owner" ] && [ "$owner" != "$PILOT_OWNER" ]; then
+            echo "ℹ️  $name: $ahead локальных коммитов (upstream $owner, push невозможен — норма)"
+        else
+            echo "↗️  $name: $ahead незапушенных коммитов"
+            UNPUSHED=$((UNPUSHED + 1))
+        fi
     fi
 }
 
 echo "🔍 Скан IWE репозиториев..."
 echo ""
+
+# Владелец workspace = владелец governance-репо (для отличия своих репо от чужого upstream)
+PILOT_OWNER=$(git -C "$IWE_DIR/${IWE_GOVERNANCE_REPO:-DS-strategy}" remote get-url origin 2>/dev/null | sed -E 's#.*github.com[:/]([^/]+)/.*#\1#' || echo "")
 
 # Workspace root itself is a repo too (submodule pointers)
 [ -e "$IWE_DIR/.git" ] && check_repo "$IWE_DIR" "IWE (root)"
