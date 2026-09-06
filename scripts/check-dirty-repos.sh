@@ -18,7 +18,7 @@ check_repo() {
     local dir="$1"
     local name="$2"
 
-    if [ ! -d "$dir/.git" ]; then return; fi
+    if [ ! -e "$dir/.git" ]; then return; fi
 
     cd "$dir"
 
@@ -42,14 +42,17 @@ check_repo() {
 echo "🔍 Скан IWE репозиториев..."
 echo ""
 
+# Workspace root itself is a repo too (submodule pointers)
+[ -e "$IWE_DIR/.git" ] && check_repo "$IWE_DIR" "IWE (root)"
+
 # Top-level repos
 for dir in "$IWE_DIR"/*/; do
-    [ -d "$dir/.git" ] && check_repo "$dir" "$(basename "$dir")"
+    [ -e "$dir/.git" ] && check_repo "$dir" "$(basename "$dir")"
 done
 
 # Nested repos (two levels deep)
 for dir in "$IWE_DIR"/*/*/; do
-    [ -d "$dir/.git" ] && check_repo "$dir" "$(basename "$(dirname "$dir")")/$(basename "$dir")"
+    [ -e "$dir/.git" ] && check_repo "$dir" "$(basename "$(dirname "$dir")")/$(basename "$dir")"
 done
 
 echo ""
